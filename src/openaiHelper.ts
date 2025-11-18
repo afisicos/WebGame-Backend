@@ -1,7 +1,16 @@
 // src/openaiHelper.ts
+import fetch from "node-fetch";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY!;
 const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+
+interface OpenAIResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+}
 
 /**
  * Pide a OpenAI datos estructurados de una ciudad.
@@ -43,7 +52,7 @@ If the city is ambiguous, pick the most likely internationally-known city with t
     throw new Error(`OpenAI error: ${res.status} ${txt}`);
   }
 
-  const json = await res.json();
+  const json = await res.json() as OpenAIResponse;
   // extraer contenido del assistant
   const raw = json.choices?.[0]?.message?.content ?? "";
   // Intentar parsear JSON del contenido (puede venir con texto; intentamos extraer primer bloque JSON)

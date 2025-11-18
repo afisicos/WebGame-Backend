@@ -12,6 +12,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.post("/create", (req, res) => {
+  const game = createGameWithId();
+  console.log("Nueva partida creada:", game.id);
+  res.json({ id: game.id });
+});
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: "*" } });
 
