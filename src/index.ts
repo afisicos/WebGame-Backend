@@ -34,12 +34,26 @@ io.on("connection", (socket) => {
   socket.on("joinMatch", ({ gameId, nickname }) => {
     const g = getGame(gameId);
     if (!g) return socket.emit("errorMsg", "Game not found");
-    addPlayerToGame(gameId, { id: socket.id, name: nickname ?? "P2", score: 0 });
+  
+    addPlayerToGame(gameId, {
+      id: socket.id,
+      name: nickname ?? "Jugador",
+      score: 0
+    });
+  
     socket.join(gameId);
-    io.to(gameId).emit("playerJoined", { players: Object.values(g.players).map(p=>({id:p.id, name:p.name})) });
-    // if two players now, start game:
+  
+    io.to(gameId).emit("playerJoined", {
+      players: Object.values(g.players)
+    });
+  
+    // ⭐️ Si ahora hay 2 jugadores → comienza partida
     if (Object.keys(g.players).length === 2 && g.status === "waiting") {
-      startTurnCycle(gameId);
+      io.to(gameId).emit("matchStart", {
+        message: "👥 Ambos jugadores conectados. ¡La partida comienza!"
+      });
+      
+      startTurnCycle(gameId); // esto arranca el turno 1
     }
   });
 

@@ -1,7 +1,7 @@
 import fetch from "node-fetch";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY!;
-const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini-2024-07-18";
 const FAKE_MODE = (process.env.FAKE_OPENAI === "true");
 
 interface CityInfo {
@@ -89,6 +89,8 @@ export async function fetchCityData(cityName: string): Promise<CityInfo> {
   if (!res.ok) {
     throw new Error(`OpenAI error: ${res.status} ${JSON.stringify(json)}`);
   }
+
+  console.log("Raw OpenAI full response:", JSON.stringify(json, null, 2));
 
   const data = json.choices?.[0]?.message?.parsed;
   if (!data) {
