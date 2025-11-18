@@ -11,18 +11,26 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js"
   },
-  "keywords": ["webgame", "backend", "express", "socket.io", "typescript"],
+  "keywords": [
+    "webgame",
+    "backend",
+    "express",
+    "socket.io",
+    "typescript"
+  ],
   "author": "afisicos",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.1.0",
+    "node-fetch": "^3.3.2",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/node": "^24.10.1",
+    "@types/node-fetch": "^2.6.13",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   }
