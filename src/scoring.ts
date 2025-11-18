@@ -1,7 +1,7 @@
 // src/scoring.ts
 export function computeScoreForPair(source: string, answer: string, sourceInfo: any, answerInfo: any) {
     // normalizaciones simples:
-    const norm = (s: string) => s.trim().toLowerCase();
+    const norm = (s: any) => (s ?? "").toString().trim().toLowerCase();
     const s1 = norm(source);
     const s2 = norm(answer);
   
