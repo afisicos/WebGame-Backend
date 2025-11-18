@@ -1,14 +1,8 @@
 services:
   - type: web
     name: webgame-backend
-    runtime: node
+    env: node
+    plan: free
+    rootDir: .
     buildCommand: "npm install && npm run build"
     startCommand: "npm start"
-    plan: free
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        generateValue: true
-      - key: FRONTEND_URL
-        value: ""
