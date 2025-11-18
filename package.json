@@ -9,9 +9,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
-    "clean": "if exist dist rmdir /s /q dist",
-    "prebuild": "npm run clean"
+    "start": "node dist/index.js"
   },
   "keywords": ["webgame", "backend", "express", "socket.io", "typescript"],
   "author": "afisicos",
