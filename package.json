@@ -1,15 +1,20 @@
 {
-  "name": "back",
+  "name": "webgame-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Backend del proyecto WebGame con Express, Socket.IO y TypeScript",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "clean": "if exist dist rmdir /s /q dist",
+    "prebuild": "npm run clean"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["webgame", "backend", "express", "socket.io", "typescript"],
+  "author": "afisicos",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
