@@ -9,7 +9,7 @@ import { fetchCityData } from "./openaiHelper";
 import { computeScoreForPair } from "./scoring";
 import { GameState } from "./types";
 
-const FRONTEND_URL = "webgame-frontend.vercel.app";
+const FRONTEND_URL = "https://webgame-frontend.vercel.app";
 
 const app = express();
 app.use(cors());
