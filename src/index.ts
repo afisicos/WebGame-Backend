@@ -4,9 +4,10 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 
-import { createGameWithId, addPlayerToGame, getGame, resetAnswersForTurn } from "./gameManager";
+import { createGameWithId, addPlayerToGame, getGame, resetAnswersForTurn, games } from "./gameManager";
 import { fetchCityData } from "./openaiHelper";
 import { computeScoreForPair } from "./scoring";
+import { GameState } from "./types";
 
 const app = express();
 app.use(cors());
@@ -80,9 +81,12 @@ io.on("connection", (socket) => {
     const p = g.players[socket.id];
     if (!p) return;
     p.lastAnswer = (answer || "").trim();
-    // check if both answered
-    const answers = Object.values(g.players).map(pl => pl.lastAnswer);
-    if (answers.every(a => !!a) || Object.values(g.players).length < 2) {
+    // check if all connected players have answered, or if there's only 1 player left
+    const connectedPlayers = Object.values(g.players);
+    const answers = connectedPlayers.map(pl => pl.lastAnswer);
+    const allAnswered = answers.every(a => !!a);
+
+    if (allAnswered || connectedPlayers.length < 2) {
       // stop timer and evaluate immediately
       if (g.turnTimer) {
         clearTimeout(g.turnTimer);
@@ -90,12 +94,31 @@ io.on("connection", (socket) => {
       }
       await evaluateTurn(gameId);
     } else {
-      // wait for other
+      // wait for other players to answer
     }
   });
 
   socket.on("disconnect", () => {
     console.log("disconnect", socket.id);
+
+    // Find and clean up any games this player was in
+    for (const [gameId, game] of Object.entries(games) as [string, GameState][]) {
+      if (game.players[socket.id]) {
+        console.log(`[disconnect] Jugador ${socket.id} desconectado de partida ${gameId}`);
+
+        // Remove player from game
+        delete game.players[socket.id];
+        game.playerOrder = game.playerOrder.filter(id => id !== socket.id);
+
+        // If game was active and now has 0 players, clean it up
+        if (Object.keys(game.players).length === 0) {
+          console.log(`[disconnect] Partida ${gameId} vacía, eliminando...`);
+          delete games[gameId];
+        }
+        // If game has 1 player left and was playing, continue normally
+        // The remaining player can keep playing and the turn will timeout normally
+      }
+    }
   });
 });
 
@@ -127,6 +150,13 @@ const SOURCE_CITIES = [
 async function startNextTurn(gameId: string) {
   const g = getGame(gameId);
   if (!g) return;
+
+  // Prevent starting new turn if already evaluating or if game is over
+  if (g.evaluating || g.status === "finished") {
+    console.log(`[startNextTurn] No se puede iniciar turno: evaluating=${g.evaluating}, status=${g.status}`);
+    return;
+  }
+
   if (g.turnTimer) {
     clearTimeout(g.turnTimer);
     g.turnTimer = null;
@@ -154,8 +184,14 @@ async function startNextTurn(gameId: string) {
 
   console.log(`[startNextTurn] Ciudad base = ${city}`);
 
-
-  io.to(gameId).emit("newTurn", { turnIndex: g.currentTurnIndex, sourceCity: city, seconds: 20 });
+  // Send turn start with server timestamp for better sync
+  const serverTime = Date.now();
+  io.to(gameId).emit("newTurn", {
+    turnIndex: g.currentTurnIndex,
+    sourceCity: city,
+    seconds: 20,
+    serverTime: serverTime
+  });
 
   // set timer 20s
   g.turnTimer = setTimeout(async () => {
@@ -175,6 +211,12 @@ async function evaluateTurn(gameId: string) {
   if (g.evaluating) {
     console.log(`[evaluateTurn] Turno ${g.currentTurnIndex} ya se está evaluando, saltando...`);
     return;
+  }
+
+  // Clear any existing timer to prevent race conditions
+  if (g.turnTimer) {
+    clearTimeout(g.turnTimer);
+    g.turnTimer = null;
   }
 
   g.evaluating = true;
@@ -230,10 +272,9 @@ async function evaluateTurn(gameId: string) {
   // Mark evaluation as complete
   g.evaluating = false;
 
-  // prepare next turn
+  // prepare next turn immediately
   g.currentTurnIndex += 1;
-  // short delay between turns
-  setTimeout(() => startNextTurn(gameId), 2500);
+  startNextTurn(gameId);
 }
 
 const port = process.env.PORT || 3000;

@@ -1,7 +1,7 @@
 // src/gameManager.ts
 import { GameState, PlayerState } from "./types";
 
-const games: Record<string, GameState> = {};
+export const games: Record<string, GameState> = {};
 
 export function createGameWithId(id?: string): GameState {
   const gid = id ?? Math.random().toString(36).slice(2, 9);
