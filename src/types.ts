@@ -21,6 +21,8 @@ export interface TurnResultDetail {
   };
   pointsGained: number;
   cityInfo?: any; // info returned by OpenAI for the answer city
+  isEquivalentCity?: boolean; // true if answer city is equivalent to source city
+  isInvalidCity?: boolean; // true if answer is not a valid city
 }
 
 export interface TurnRecord {

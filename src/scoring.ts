@@ -1,10 +1,52 @@
 // src/scoring.ts
-export function computeScoreForPair(source: string, answer: string, sourceInfo: any, answerInfo: any) {
+import { areCitiesEquivalent, isValidCity } from "./openaiHelper";
+
+export async function computeScoreForPair(source: string, answer: string, sourceInfo: any, answerInfo: any) {
     // normalizaciones simples:
     const norm = (s: any) => (s ?? "").toString().trim().toLowerCase();
     const s1 = norm(source);
     const s2 = norm(answer);
-  
+
+    // First, check if answer is a valid city
+    const answerIsValidCity = await isValidCity(answer);
+    if (!answerIsValidCity) {
+        return {
+            points: 0,
+            checks: {
+                startsWith: false,
+                endsWith: false,
+                sameLength: false,
+                sameCountry: false,
+                sharedLanguage: false,
+                populationSimilar: false,
+                foundedSameCentury: false
+            },
+            answerInfo,
+            isEquivalentCity: false,
+            isInvalidCity: true
+        };
+    }
+
+    // Second, check if cities are equivalent - if so, 0 points and invalidate the turn
+    const isEquivalentCity = await areCitiesEquivalent(source, answer);
+    if (isEquivalentCity) {
+        return {
+            points: 0,
+            checks: {
+                startsWith: false,
+                endsWith: false,
+                sameLength: false,
+                sameCountry: false,
+                sharedLanguage: false,
+                populationSimilar: false,
+                foundedSameCentury: false
+            },
+            answerInfo,
+            isEquivalentCity: true,
+            isInvalidCity: false
+        };
+    }
+
     let points = 0;
     const checks = {
       startsWith: false,
@@ -52,6 +94,6 @@ export function computeScoreForPair(source: string, answer: string, sourceInfo: 
       if (cA === cB) { checks.foundedSameCentury = true; points += 3; }
     }
   
-    return { points, checks, answerInfo };
+    return { points, checks, answerInfo, isEquivalentCity: false, isInvalidCity: false };
   }
   

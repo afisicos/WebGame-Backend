@@ -189,13 +189,15 @@ async function evaluateTurn(gameId: string) {
       answerInfo = await fetchCityData(answer);
     } catch (err) { console.error("openai answer fetch", err); answerInfo = {}; }
 
-    const res = computeScoreForPair(sourceCity, answer, sourceInfo, answerInfo);
+    const res = await computeScoreForPair(sourceCity, answer, sourceInfo, answerInfo);
     p.score += res.points;
     turnRecord.results[pid] = {
       playerAnswer: answer,
       checks: res.checks,
       pointsGained: res.points,
-      cityInfo: res.answerInfo
+      cityInfo: res.answerInfo,
+      isEquivalentCity: res.isEquivalentCity,
+      isInvalidCity: res.isInvalidCity
     };
   }
 
