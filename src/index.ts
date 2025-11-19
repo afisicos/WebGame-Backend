@@ -33,34 +33,43 @@ io.on("connection", (socket) => {
 
   socket.on("joinMatch", ({ gameId, nickname }) => {
     const g = getGame(gameId);
-    if (!g) return socket.emit("errorMsg", "Game not found");
+    if (!g) {
+      console.log(`[joinMatch] Partida ${gameId} no existe`);
+      return socket.emit("errorMsg", "Game not found");
+    }
   
-    // Evitar añadir al mismo jugador dos veces
+    console.log(`[joinMatch] Jugador conectado socket=${socket.id} nombre=${nickname} gameId=${gameId}`);
+  
+    // Evitar añadir dos veces
     if (!g.players[socket.id]) {
       addPlayerToGame(gameId, { id: socket.id, name: nickname ?? "Jugador", score: 0 });
     }
   
     socket.join(gameId);
   
+    console.log(`[joinMatch] Jugadores actuales en ${gameId}: ${Object.keys(g.players).length}`);
+  
     io.to(gameId).emit("playerJoined", {
-      players: Object.values(g.players),
+      players: Object.values(g.players)
     });
   
-    // ⭐️ SOLO EMPIEZA LA PARTIDA UNA VEZ
+    // Cuando haya 2 → empezar partida
     if (Object.keys(g.players).length === 2 && g.status === "waiting") {
+      console.log(`[matchStart] Partida ${gameId} tiene 2 jugadores → iniciando partida...`);
+  
       g.status = "starting";
   
       io.to(gameId).emit("matchStart", {
         message: "👥 Ambos jugadores conectados. ¡La partida comienza!"
       });
   
-      // Espera medio segundo para evitar duplicación accidental
       setTimeout(() => {
         if (g.status === "starting") {
           g.status = "playing";
+          console.log(`[matchStart] Iniciando ciclo de turnos en ${gameId}`);
           startTurnCycle(gameId);
         }
-      }, 500);
+      }, 300);
     }
   });
   
@@ -98,6 +107,8 @@ async function startTurnCycle(gameId: string) {
   // Si ya está jugando, NO reiniciar
   if (g.status === "playing") return;
 
+  console.log(`[startTurnCycle] Iniciando partida gameId=${gameId}`);
+
   g.status = "playing";
   g.currentTurnIndex = 0;
   g.history = [];
@@ -130,16 +141,24 @@ async function startNextTurn(gameId: string) {
     return;
   }
 
+  console.log(`[startNextTurn] Turno ${g.currentTurnIndex + 1}/${g.turnsTotal} gameId=${gameId}`);
+
+
   // pick a city (random)
   const city = SOURCE_CITIES[Math.floor(Math.random() * SOURCE_CITIES.length)];
   g.turnCity = city;
   g.turnStartTime = Date.now();
   resetAnswersForTurn(g);
 
+  console.log(`[startNextTurn] Ciudad base = ${city}`);
+
+
   io.to(gameId).emit("newTurn", { turnIndex: g.currentTurnIndex, sourceCity: city, seconds: 10 });
 
   // set timer 10s
   g.turnTimer = setTimeout(async () => {
+    console.log(`[turnTimeout] Tiempo agotado en turno ${g.currentTurnIndex} → evaluando`);
+
     g.turnTimer = null;
     await evaluateTurn(gameId);
   }, 10_000);
@@ -149,6 +168,10 @@ async function startNextTurn(gameId: string) {
 async function evaluateTurn(gameId: string) {
   const g = getGame(gameId);
   if (!g) return;
+
+  console.log(`[evaluateTurn] Evaluando turno ${g.currentTurnIndex} gameId=${gameId}`);
+
+
   const sourceCity = g.turnCity!;
   let sourceInfo = null;
   try {
@@ -178,12 +201,17 @@ async function evaluateTurn(gameId: string) {
 
   g.history.push(turnRecord);
 
+  console.log(`[evaluateTurn] Turno procesado. Resultados:`);
+
+
   // emit results
   io.to(gameId).emit("turnResult", {
     turnIndex: g.currentTurnIndex,
     record: turnRecord,
     players: Object.values(g.players).map(p => ({ id: p.id, name: p.name, score: p.score }))
   });
+
+  
 
   // prepare next turn
   g.currentTurnIndex += 1;

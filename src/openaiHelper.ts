@@ -86,11 +86,13 @@ export async function fetchCityData(cityName: string): Promise<CityInfo> {
   // ❗ TypeScript fix: explicitly type the result  
   const json = (await res.json()) as OpenAIResponse;
 
+  const rawMessage = json.choices?.[0]?.message;
+  console.log("[OPENAI] parsed data=", JSON.stringify(rawMessage?.parsed, null, 2));
+
+  
   if (!res.ok) {
     throw new Error(`OpenAI error: ${res.status} ${JSON.stringify(json)}`);
   }
-
-  console.log("Raw OpenAI full response:", JSON.stringify(json, null, 2));
 
   const data = json.choices?.[0]?.message?.parsed;
   if (!data) {
