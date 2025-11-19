@@ -9,8 +9,6 @@ import { fetchCityData } from "./openaiHelper";
 import { computeScoreForPair } from "./scoring";
 import { GameState } from "./types";
 
-const FRONTEND_URL = "https://webgame-frontend.vercel.app";
-
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -18,17 +16,7 @@ app.use(express.json());
 app.post("/create", (req, res) => {
   const game = createGameWithId();
   console.log("Nueva partida creada:", game.id);
-
-  // Generate game URL and WhatsApp share link
-  const gameUrl = `${FRONTEND_URL}/join/${game.id}`;
-  const whatsappMessage = `¡Únete a mi partida de Cities Game! ${gameUrl}`;
-  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`;
-
-  res.json({
-    id: game.id,
-    gameUrl: gameUrl,
-    whatsappUrl: whatsappUrl
-  });
+  res.json({ id: game.id });
 });
 
 const httpServer = createServer(app);
