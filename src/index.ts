@@ -78,12 +78,12 @@ io.on("connection", (socket) => {
     const p = g.players[socket.id];
     if (!p) return;
     p.lastAnswer = (answer || "").trim();
-    // check if all connected players have answered, or if there's only 1 player left
+    // check if all connected players have answered (only if they have non-empty answers)
     const connectedPlayers = Object.values(g.players);
     const answers = connectedPlayers.map(pl => pl.lastAnswer);
-    const allAnswered = answers.every(a => !!a);
+    const allAnswered = answers.every(a => a && a.trim().length > 0);
 
-    if (allAnswered || connectedPlayers.length < 2) {
+    if (allAnswered) {
       // stop timer and evaluate immediately
       if (g.turnTimer) {
         clearTimeout(g.turnTimer);
