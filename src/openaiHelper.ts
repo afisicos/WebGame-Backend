@@ -4,7 +4,7 @@ const OPENAI_KEY = process.env.OPENAI_API_KEY!;
 const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini-2024-07-18";
 const FAKE_MODE = (process.env.FAKE_OPENAI === "true");
 
-interface CityInfo {
+export interface CityInfo {
   city: string;
   country: string | null;
   languages: string[];
@@ -16,32 +16,50 @@ interface OpenAIResponse {
   choices: {
     message: {
       parsed?: CityInfo;
+      content?: string;
     };
   }[];
 }
 
-if (!OPENAI_KEY && !FAKE_MODE) {
-  console.warn("WARNING: OPENAI_API_KEY is not set. OpenAI calls will fail.");
-}
-
-function fakeCityData(cityName: string): CityInfo {
+function fakeCityData(city: string): CityInfo {
   return {
-    city: cityName,
+    city,
     country: "Unknown",
     languages: ["Unknown"],
-    population: 500000,
-    foundedYear: 1500,
+    population: 100000,
+    foundedYear: 1500
   };
 }
 
-export async function fetchCityData(cityName: string): Promise<CityInfo> {
-  if (FAKE_MODE) {
-    return fakeCityData(cityName);
-  }
+function extractJSON(text: string): any | null {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
 
-  if (!OPENAI_KEY) {
-    throw new Error("OPENAI_API_KEY missing.");
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    return null;
   }
+}
+
+export async function fetchCityData(cityName: string): Promise<CityInfo> {
+  if (FAKE_MODE) return fakeCityData(cityName);
+
+  const prompt = `
+Return VALID JSON following the schema. 
+If a value is unknown, set null.
+
+Schema:
+{
+  "city": string,
+  "country": string|null,
+  "languages": [string],
+  "population": integer|null,
+  "foundedYear": integer|null
+}
+
+City: "${cityName}"
+  `;
 
   const body = {
     model: OPENAI_MODEL,
@@ -54,10 +72,7 @@ export async function fetchCityData(cityName: string): Promise<CityInfo> {
           properties: {
             city: { type: "string" },
             country: { type: ["string", "null"] },
-            languages: {
-              type: "array",
-              items: { type: "string" }
-            },
+            languages: { type: "array", items: { type: "string" }},
             population: { type: ["integer", "null"] },
             foundedYear: { type: ["integer", "null"] }
           },
@@ -66,10 +81,8 @@ export async function fetchCityData(cityName: string): Promise<CityInfo> {
       }
     },
     messages: [
-      {
-        role: "user",
-        content: `You MUST output the required JSON object. Fill missing or unknown values with null. City="${cityName}".`
-      }
+      { role: "system", content: "Return ONLY JSON." },
+      { role: "user", content: prompt }
     ],
     temperature: 0
   };
@@ -83,25 +96,29 @@ export async function fetchCityData(cityName: string): Promise<CityInfo> {
     body: JSON.stringify(body)
   });
 
-  
-
-  // ❗ TypeScript fix: explicitly type the result  
   const json = (await res.json()) as OpenAIResponse;
 
-  console.log("[OPENAI] parsed exists?", !!json.choices?.[0]?.message?.parsed);
+  const parsed = json.choices?.[0]?.message?.parsed;
+  const content = json.choices?.[0]?.message?.content ?? "";
 
-  const rawMessage = json.choices?.[0]?.message;
-  console.log("[OPENAI] parsed data=", JSON.stringify(rawMessage?.parsed, null, 2));
+  console.log("[OPENAI] parsed exists?", !!parsed);
+  console.log("[OPENAI] content=", content);
 
-  
-  if (!res.ok) {
-    throw new Error(`OpenAI error: ${res.status} ${JSON.stringify(json)}`);
-  }
+  // 1. Si parsed existe → perfecto
+  if (parsed) return parsed;
 
-  const data = json.choices?.[0]?.message?.parsed;
-  if (!data) {
-    throw new Error("Missing parsed JSON from OpenAI response.");
-  }
+  // 2. Si no, intentar extraer JSON del content
+  const fallback = extractJSON(content);
+  if (fallback) return fallback as CityInfo;
 
-  return data;
+  // 3. Último recurso → devolver valores nulos sin romper el juego
+  console.log("[OPENAI] WARNING: respuesta sin JSON válido. Usando fallback.");
+
+  return {
+    city: cityName,
+    country: null,
+    languages: [],
+    population: null,
+    foundedYear: null
+  };
 }
