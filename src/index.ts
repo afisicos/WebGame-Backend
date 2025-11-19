@@ -35,27 +35,35 @@ io.on("connection", (socket) => {
     const g = getGame(gameId);
     if (!g) return socket.emit("errorMsg", "Game not found");
   
-    addPlayerToGame(gameId, {
-      id: socket.id,
-      name: nickname ?? "Jugador",
-      score: 0
-    });
+    // Evitar añadir al mismo jugador dos veces
+    if (!g.players[socket.id]) {
+      addPlayerToGame(gameId, { id: socket.id, name: nickname ?? "Jugador", score: 0 });
+    }
   
     socket.join(gameId);
   
     io.to(gameId).emit("playerJoined", {
-      players: Object.values(g.players)
+      players: Object.values(g.players),
     });
   
-    // ⭐️ Si ahora hay 2 jugadores → comienza partida
+    // ⭐️ SOLO EMPIEZA LA PARTIDA UNA VEZ
     if (Object.keys(g.players).length === 2 && g.status === "waiting") {
+      g.status = "starting";
+  
       io.to(gameId).emit("matchStart", {
         message: "👥 Ambos jugadores conectados. ¡La partida comienza!"
       });
-      
-      startTurnCycle(gameId); // esto arranca el turno 1
+  
+      // Espera medio segundo para evitar duplicación accidental
+      setTimeout(() => {
+        if (g.status === "starting") {
+          g.status = "playing";
+          startTurnCycle(gameId);
+        }
+      }, 500);
     }
   });
+  
 
   socket.on("submitAnswer", async ({ gameId, answer }) => {
     const g = getGame(gameId);
@@ -86,9 +94,14 @@ io.on("connection", (socket) => {
 async function startTurnCycle(gameId: string) {
   const g = getGame(gameId);
   if (!g) return;
+
+  // Si ya está jugando, NO reiniciar
+  if (g.status === "playing") return;
+
   g.status = "playing";
   g.currentTurnIndex = 0;
   g.history = [];
+
   await startNextTurn(gameId);
 }
 
@@ -103,6 +116,10 @@ const SOURCE_CITIES = [
 async function startNextTurn(gameId: string) {
   const g = getGame(gameId);
   if (!g) return;
+  if (g.turnTimer) {
+    clearTimeout(g.turnTimer);
+    g.turnTimer = null;
+  }
   if (g.currentTurnIndex >= g.turnsTotal) {
     // game over
     g.status = "finished";

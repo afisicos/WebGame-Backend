@@ -38,5 +38,5 @@ export interface GameState {
   turnTimer?: NodeJS.Timeout | null;
   turnStartTime?: number;
   turnCity?: string;
-  status: "waiting" | "playing" | "finished";
+  status: "waiting" | "starting" | "playing" | "finished";
 }
