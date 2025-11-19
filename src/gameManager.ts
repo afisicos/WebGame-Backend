@@ -13,6 +13,7 @@ export function createGameWithId(id?: string): GameState {
     turnsTotal: 5,
     history: [],
     turnTimer: null,
+    turnCity: undefined,
     status: "waiting"
   };
   games[gid] = g;

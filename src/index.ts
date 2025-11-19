@@ -9,6 +9,8 @@ import { fetchCityData } from "./openaiHelper";
 import { computeScoreForPair } from "./scoring";
 import { GameState } from "./types";
 
+const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:3000";
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -16,7 +18,17 @@ app.use(express.json());
 app.post("/create", (req, res) => {
   const game = createGameWithId();
   console.log("Nueva partida creada:", game.id);
-  res.json({ id: game.id });
+
+  // Generate game URL and WhatsApp share link
+  const gameUrl = `${FRONTEND_URL}/join/${game.id}`;
+  const whatsappMessage = `¡Únete a mi partida de Cities Game! ${gameUrl}`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`;
+
+  res.json({
+    id: game.id,
+    gameUrl: gameUrl,
+    whatsappUrl: whatsappUrl
+  });
 });
 
 const httpServer = createServer(app);
@@ -92,7 +104,12 @@ io.on("connection", (socket) => {
         clearTimeout(g.turnTimer);
         g.turnTimer = null;
       }
-      await evaluateTurn(gameId);
+      // Only evaluate if we have a valid turn city configured
+      if (g.turnCity) {
+        await evaluateTurn(gameId);
+      } else {
+        console.log(`[submitAnswer] Skipping evaluation for game ${gameId} - turnCity not configured yet`);
+      }
     } else {
       // wait for other players to answer
     }
@@ -182,7 +199,7 @@ async function startNextTurn(gameId: string) {
   g.turnStartTime = Date.now();
   resetAnswersForTurn(g);
 
-  console.log(`[startNextTurn] Ciudad base = ${city}`);
+  console.log(`[startNextTurn] Ciudad base seleccionada: ${city}, turnCity configurado: ${g.turnCity}`);
 
   // Send turn start with server timestamp for better sync
   const serverTime = Date.now();
@@ -198,7 +215,12 @@ async function startNextTurn(gameId: string) {
     console.log(`[turnTimeout] Tiempo agotado en turno ${g.currentTurnIndex} → evaluando`);
 
     g.turnTimer = null;
-    await evaluateTurn(gameId);
+    // Ensure turnCity is configured before evaluating
+    if (g.turnCity) {
+      await evaluateTurn(gameId);
+    } else {
+      console.error(`[turnTimeout] ERROR: turnCity not configured for timeout evaluation, game ${gameId}`);
+    }
   }, 20_000);
 }
 
@@ -223,7 +245,14 @@ async function evaluateTurn(gameId: string) {
   console.log(`[evaluateTurn] Evaluando turno ${g.currentTurnIndex} gameId=${gameId}`);
 
 
-  const sourceCity = g.turnCity!;
+  const sourceCity = g.turnCity;
+  if (!sourceCity) {
+    console.error(`[evaluateTurn] ERROR: turnCity is undefined for game ${gameId}, turn ${g.currentTurnIndex}`);
+    // Skip this evaluation or try to recover
+    g.evaluating = false;
+    return;
+  }
+
   let sourceInfo = null;
   try {
     sourceInfo = await fetchCityData(sourceCity);

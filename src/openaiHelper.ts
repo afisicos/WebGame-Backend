@@ -3,6 +3,7 @@ import fetch from "node-fetch";
 const OPENAI_KEY = process.env.OPENAI_API_KEY!;
 const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini-2024-07-18";
 const FAKE_MODE = (process.env.FAKE_OPENAI === "true");
+const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:3000";
 
 export interface CityInfo {
   city: string;
