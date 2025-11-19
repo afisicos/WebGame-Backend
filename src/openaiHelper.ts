@@ -32,12 +32,23 @@ function fakeCityData(city: string): CityInfo {
 }
 
 function extractJSON(text: string): any | null {
-  const match = text.match(/\{[\s\S]*\}/);
+  // Clean the text first
+  const cleanText = text.trim();
+
+  // Try to find JSON object
+  const match = cleanText.match(/\{[\s\S]*\}/);
   if (!match) return null;
 
   try {
-    return JSON.parse(match[0]);
-  } catch {
+    const jsonStr = match[0];
+    // Remove any trailing commas before closing braces/brackets
+    const cleanedJson = jsonStr
+      .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
+      .replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":'); // Quote unquoted keys
+
+    return JSON.parse(cleanedJson);
+  } catch (err) {
+    console.log("[OPENAI] Error parsing JSON:", err);
     return null;
   }
 }
@@ -45,46 +56,18 @@ function extractJSON(text: string): any | null {
 export async function fetchCityData(cityName: string): Promise<CityInfo> {
   if (FAKE_MODE) return fakeCityData(cityName);
 
-  const prompt = `
-Return VALID JSON following the schema.
-If a value is unknown, set null.
+  const prompt = `Provide information about the city "${cityName}" in the following JSON format. If any information is unknown, use null. Be precise and factual.
 
-Schema:
-{
-  "city": string,
-  "country": string|null,
-  "languages": [string],
-  "population": integer|null,
-  "foundedYear": integer|null
-}
-
-City: "${cityName}"
-  `;
+{"city": "City Name", "country": "Country Name", "languages": ["Language1", "Language2"], "population": 123456, "foundedYear": 1234}`;
 
   const body = {
     model: OPENAI_MODEL,
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: "city_schema",
-        schema: {
-          type: "object",
-          properties: {
-            city: { type: "string" },
-            country: { type: ["string", "null"] },
-            languages: { type: "array", items: { type: "string" }},
-            population: { type: ["integer", "null"] },
-            foundedYear: { type: ["integer", "null"] }
-          },
-          required: ["city", "country", "languages", "population", "foundedYear"]
-        }
-      }
-    },
     messages: [
-      { role: "system", content: "Return ONLY JSON." },
+      { role: "system", content: "Return ONLY valid JSON. No explanations, no markdown, just the JSON object." },
       { role: "user", content: prompt }
     ],
-    temperature: 0
+    temperature: 0,
+    max_tokens: 200
   };
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -115,7 +98,7 @@ City: "${cityName}"
   console.log("[OPENAI] WARNING: respuesta sin JSON válido. Usando fallback.");
 
   return {
-    city: cityName,
+    city: cityName || "Unknown",
     country: null,
     languages: [],
     population: null,
@@ -134,16 +117,16 @@ export async function isValidCity(cityName: string): Promise<boolean> {
     return true;
   }
 
-  const prompt = `Determine if "${cityName}" is the name of a real city or town. Consider: - Official city names in any language - Historical city names - Well-known towns and municipalities - Capital cities and major urban centers Return ONLY "true" if it is a real city/town, or "false" if it is not (e.g., countries, regions, landmarks, fictional places, or random words).`;
+  const prompt = `Is "${cityName}" the name of a real city, town, or urban area? Answer only "true" or "false". Consider: cities, towns, municipalities, capitals, suburbs, historical cities, alternative spellings. Not countries, regions, landmarks, fictional places, companies, or random words. When in doubt, err on the side of "true" for urban settlements.`;
 
   const body = {
     model: OPENAI_MODEL,
     messages: [
-      { role: "system", content: "You are a geography expert. Return only 'true' or 'false'." },
+      { role: "system", content: "Return only 'true' or 'false'. Be permissive with city names and alternative spellings." },
       { role: "user", content: prompt }
     ],
     temperature: 0,
-    max_tokens: 10
+    max_tokens: 12
   };
 
   try {
@@ -164,8 +147,8 @@ export async function isValidCity(cityName: string): Promise<boolean> {
     return content === "true";
   } catch (err) {
     console.error("[OPENAI] Error validating city:", err);
-    // Fallback: consider it valid if OpenAI fails
-    return true;
+    // Fallback: consider it invalid if OpenAI fails (safer approach)
+    return false;
   }
 }
 
@@ -176,12 +159,12 @@ export async function areCitiesEquivalent(city1: string, city2: string): Promise
     return norm1 === norm2;
   }
 
-  const prompt = `Analyze if these two city names refer to the same city or are equivalent names for the same geographical location. City 1: "${city1}" City 2: "${city2}" Consider: - Different language names (e.g., "New York" vs "Nueva York") - Alternative names and spellings (e.g., "Mumbai" vs "Bombay") - Abbreviations and common variations - Historical name changes Return ONLY "true" if they refer to the same city, or "false" if they are different cities.`;
+  const prompt = `Do "${city1}" and "${city2}" refer to the same city? Consider different languages, alternative names, spellings, and historical changes. Answer only "true" or "false".`;
 
   const body = {
     model: OPENAI_MODEL,
     messages: [
-      { role: "system", content: "You are a geography expert. Return only 'true' or 'false'." },
+      { role: "system", content: "Return only 'true' or 'false'. No explanations." },
       { role: "user", content: prompt }
     ],
     temperature: 0,

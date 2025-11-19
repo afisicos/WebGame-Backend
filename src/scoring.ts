@@ -8,8 +8,18 @@ export async function computeScoreForPair(source: string, answer: string, source
     const s2 = norm(answer);
 
     // First, check if answer is a valid city
+    // A city is considered valid if:
+    // 1. isValidCity() confirms it, OR
+    // 2. fetchCityData() found structured information about it
     const answerIsValidCity = await isValidCity(answer);
-    if (!answerIsValidCity) {
+    const hasStructuredInfo = answerInfo && (
+        answerInfo.country ||
+        (answerInfo.languages && answerInfo.languages.length > 0) ||
+        answerInfo.population ||
+        answerInfo.foundedYear
+    );
+
+    if (!answerIsValidCity && !hasStructuredInfo) {
         return {
             points: 0,
             checks: {
