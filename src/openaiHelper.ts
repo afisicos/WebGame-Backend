@@ -68,7 +68,7 @@ export async function fetchCityData(cityName: string): Promise<CityInfo> {
     messages: [
       {
         role: "user",
-        content: `Give factual information about the city "${cityName}".`
+        content: `You MUST output the required JSON object. Fill missing or unknown values with null. City="${cityName}".`
       }
     ],
     temperature: 0
@@ -83,8 +83,12 @@ export async function fetchCityData(cityName: string): Promise<CityInfo> {
     body: JSON.stringify(body)
   });
 
+  
+
   // ❗ TypeScript fix: explicitly type the result  
   const json = (await res.json()) as OpenAIResponse;
+
+  console.log("[OPENAI] parsed exists?", !!json.choices?.[0]?.message?.parsed);
 
   const rawMessage = json.choices?.[0]?.message;
   console.log("[OPENAI] parsed data=", JSON.stringify(rawMessage?.parsed, null, 2));
