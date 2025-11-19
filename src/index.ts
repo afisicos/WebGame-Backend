@@ -153,15 +153,15 @@ async function startNextTurn(gameId: string) {
   console.log(`[startNextTurn] Ciudad base = ${city}`);
 
 
-  io.to(gameId).emit("newTurn", { turnIndex: g.currentTurnIndex, sourceCity: city, seconds: 10 });
+  io.to(gameId).emit("newTurn", { turnIndex: g.currentTurnIndex, sourceCity: city, seconds: 20 });
 
-  // set timer 10s
+  // set timer 20s
   g.turnTimer = setTimeout(async () => {
     console.log(`[turnTimeout] Tiempo agotado en turno ${g.currentTurnIndex} → evaluando`);
 
     g.turnTimer = null;
     await evaluateTurn(gameId);
-  }, 10_000);
+  }, 20_000);
 }
 
 // Evaluate turn: fetch city data for source and both answers, score, emit result
