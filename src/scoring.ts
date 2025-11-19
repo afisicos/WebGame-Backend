@@ -40,7 +40,7 @@ export function computeScoreForPair(source: string, answer: string, sourceInfo: 
     const popB = Number(answerInfo?.population) || null;
     if (popA && popB) {
       const ratio = Math.abs(popA - popB) / Math.max(popA, popB);
-      if (ratio <= 0.2) { checks.populationSimilar = true; points += 2; }
+      if (ratio <= 0.3) { checks.populationSimilar = true; points += 2; }
     }
   
     // f same century founded => 3 points
