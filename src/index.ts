@@ -9,7 +9,7 @@ import { fetchCityData } from "./openaiHelper";
 import { computeScoreForPair } from "./scoring";
 import { GameState } from "./types";
 
-const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:3000";
+const FRONTEND_URL = "webgame-frontend.vercel.app";
 
 const app = express();
 app.use(cors());
