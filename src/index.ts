@@ -145,11 +145,12 @@ async function startTurnCycle(gameId: string) {
 }
 
 const SOURCE_CITIES = [
-  "Madrid", "Paris", "New York", "Tokyo", "Buenos Aires", "Cairo", "Sydney", "Moscow", "Barcelona", "Lisbon", "Berlin",
+  "Paris", "New York", "Tokyo", "Buenos Aires", "Cairo", "Sydney", "Moscow", "Barcelona", "Lisbon", "Berlin",
   "London", "Rome", "Amsterdam", "Vienna", "Prague", "Budapest", "Athens", "Istanbul", "Jerusalem", "Dubai",
   "Rio de Janeiro", "Mexico City", "Bogota", "Lima", "Santiago", "Toronto", "Vancouver", "Montreal", "Chicago", "Los Angeles",
   "San Francisco", "Miami", "Seattle", "Boston", "Beijing", "Shanghai", "Seoul", "Bangkok", "Singapore", "Mumbai",
-  "Delhi", "Jakarta", "Manila", "Kuala Lumpur", "Hong Kong", "Taipei", "Cape Town", "Nairobi", "Lagos", "Casablanca"
+  "Delhi", "Jakarta", "Manila", "Kuala Lumpur", "Hong Kong", "Taipei", "Cape Town", "Nairobi", "Lagos", "Casablanca",
+  "Madrid" // Movido al final para que no sea el primero
 ];
 
 async function startNextTurn(gameId: string) {
@@ -181,13 +182,20 @@ async function startNextTurn(gameId: string) {
   // Reset evaluation flag for new turn
   g.evaluating = false;
 
-  // pick a city (random)
-  const city = SOURCE_CITIES[Math.floor(Math.random() * SOURCE_CITIES.length)];
+  // pick a city (random) - ensure truly random selection
+  const randomValue = Math.random();
+  const randomIndex = Math.floor(randomValue * SOURCE_CITIES.length);
+
+  // Additional check: if index is 0 (would be Paris now), re-roll once to avoid potential bias
+  const finalIndex = (randomIndex === 0 && Math.random() > 0.5) ?
+    Math.floor(Math.random() * (SOURCE_CITIES.length - 1)) + 1 : randomIndex;
+
+  const city = SOURCE_CITIES[finalIndex];
   g.turnCity = city;
   g.turnStartTime = Date.now();
   resetAnswersForTurn(g);
 
-  console.log(`[startNextTurn] Ciudad base seleccionada: ${city}, turnCity configurado: ${g.turnCity}`);
+  console.log(`[startNextTurn] Ciudad aleatoria: random=${randomValue.toFixed(3)}, índice=${finalIndex}/${SOURCE_CITIES.length}, ciudad="${city}"`);
 
   // Send turn start with server timestamp for better sync
   const serverTime = Date.now();
