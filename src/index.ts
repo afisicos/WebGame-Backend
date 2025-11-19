@@ -64,13 +64,10 @@ io.on("connection", (socket) => {
         message: "👥 Ambos jugadores conectados. ¡La partida comienza!"
       });
   
-      setTimeout(() => {
-        if (g.status === "starting") {
-          g.status = "playing";
-          console.log(`[matchStart] Iniciando ciclo de turnos en ${gameId}`);
-          startTurnCycle(gameId);
-        }
-      }, 300);
+      // Start game immediately without delay
+      g.status = "playing";
+      console.log(`[matchStart] Iniciando ciclo de turnos en ${gameId}`);
+      startTurnCycle(gameId);
     }
   });
   
