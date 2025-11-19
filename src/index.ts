@@ -93,7 +93,11 @@ async function startTurnCycle(gameId: string) {
 }
 
 const SOURCE_CITIES = [
-  "Madrid", "Paris", "New York", "Tokyo", "Buenos Aires", "Cairo", "Sydney", "Moscow", "Barcelona", "Lisbon"
+  "Madrid", "Paris", "New York", "Tokyo", "Buenos Aires", "Cairo", "Sydney", "Moscow", "Barcelona", "Lisbon", "Berlin",
+  "London", "Rome", "Amsterdam", "Vienna", "Prague", "Budapest", "Athens", "Istanbul", "Jerusalem", "Dubai",
+  "Rio de Janeiro", "Mexico City", "Bogota", "Lima", "Santiago", "Toronto", "Vancouver", "Montreal", "Chicago", "Los Angeles",
+  "San Francisco", "Miami", "Seattle", "Boston", "Beijing", "Shanghai", "Seoul", "Bangkok", "Singapore", "Mumbai",
+  "Delhi", "Jakarta", "Manila", "Kuala Lumpur", "Hong Kong", "Taipei", "Cape Town", "Nairobi", "Lagos", "Casablanca"
 ];
 
 async function startNextTurn(gameId: string) {
@@ -102,7 +106,10 @@ async function startNextTurn(gameId: string) {
   if (g.currentTurnIndex >= g.turnsTotal) {
     // game over
     g.status = "finished";
-    io.to(gameId).emit("gameOver", { history: g.history, players: g.players });
+    io.to(gameId).emit("gameOver", {
+      history: g.history,
+      players: Object.values(g.players)
+    });
     return;
   }
 
