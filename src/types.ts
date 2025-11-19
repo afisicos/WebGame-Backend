@@ -41,4 +41,5 @@ export interface GameState {
   turnStartTime?: number;
   turnCity?: string;
   status: "waiting" | "starting" | "playing" | "finished";
+  evaluating?: boolean; // true if currently evaluating a turn
 }

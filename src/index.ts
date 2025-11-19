@@ -143,6 +143,8 @@ async function startNextTurn(gameId: string) {
 
   console.log(`[startNextTurn] Turno ${g.currentTurnIndex + 1}/${g.turnsTotal} gameId=${gameId}`);
 
+  // Reset evaluation flag for new turn
+  g.evaluating = false;
 
   // pick a city (random)
   const city = SOURCE_CITIES[Math.floor(Math.random() * SOURCE_CITIES.length)];
@@ -169,6 +171,13 @@ async function evaluateTurn(gameId: string) {
   const g = getGame(gameId);
   if (!g) return;
 
+  // Prevent duplicate evaluations
+  if (g.evaluating) {
+    console.log(`[evaluateTurn] Turno ${g.currentTurnIndex} ya se está evaluando, saltando...`);
+    return;
+  }
+
+  g.evaluating = true;
   console.log(`[evaluateTurn] Evaluando turno ${g.currentTurnIndex} gameId=${gameId}`);
 
 
@@ -185,9 +194,14 @@ async function evaluateTurn(gameId: string) {
     const p = g.players[pid];
     const answer = p.lastAnswer ?? ""; // could be empty if not answered
     let answerInfo = null;
-    try {
-      answerInfo = await fetchCityData(answer);
-    } catch (err) { console.error("openai answer fetch", err); answerInfo = {}; }
+    if (answer.trim()) {
+      try {
+        answerInfo = await fetchCityData(answer);
+      } catch (err) { console.error("openai answer fetch", err); answerInfo = {}; }
+    } else {
+      // Empty answer - no need to call OpenAI
+      answerInfo = { city: "", country: null, languages: [], population: null, foundedYear: null };
+    }
 
     const res = await computeScoreForPair(sourceCity, answer, sourceInfo, answerInfo);
     p.score += res.points;
@@ -213,7 +227,8 @@ async function evaluateTurn(gameId: string) {
     players: Object.values(g.players).map(p => ({ id: p.id, name: p.name, score: p.score }))
   });
 
-  
+  // Mark evaluation as complete
+  g.evaluating = false;
 
   // prepare next turn
   g.currentTurnIndex += 1;
