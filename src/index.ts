@@ -57,31 +57,43 @@ io.on("connection", (socket) => {
     // Cuando haya 2 → empezar partida
     if (Object.keys(g.players).length === 2 && g.status === "waiting") {
       console.log(`[matchStart] Partida ${gameId} tiene 2 jugadores → iniciando partida...`);
-  
-      g.status = "starting";
-  
+
+      g.status = "playing"; // Ir directamente a playing
+      console.log(`[matchStart] Estado cambiado a playing para ${gameId}`);
+
       io.to(gameId).emit("matchStart", {
         message: "👥 Ambos jugadores conectados. ¡La partida comienza!"
       });
-  
-      // Start game immediately without delay
-      g.status = "playing";
+
+      // Start turn cycle immediately
       console.log(`[matchStart] Iniciando ciclo de turnos en ${gameId}`);
-      startTurnCycle(gameId);
+      setImmediate(() => startTurnCycle(gameId)); // Usar setImmediate para asegurar ejecución inmediata
     }
   });
   
 
   socket.on("submitAnswer", async ({ gameId, answer }) => {
+    console.log(`[submitAnswer] Received answer from ${socket.id}: "${answer}" for game ${gameId}`);
     const g = getGame(gameId);
-    if (!g) return;
+    if (!g) {
+      console.log(`[submitAnswer] Game ${gameId} not found`);
+      return;
+    }
     const p = g.players[socket.id];
-    if (!p) return;
+    if (!p) {
+      console.log(`[submitAnswer] Player ${socket.id} not found in game ${gameId}`);
+      return;
+    }
+
     p.lastAnswer = (answer || "").trim();
+    console.log(`[submitAnswer] Game status: ${g.status}, turnCity: "${g.turnCity}", evaluating: ${g.evaluating}`);
+
     // check if all connected players have answered (only if they have non-empty answers)
     const connectedPlayers = Object.values(g.players);
     const answers = connectedPlayers.map(pl => pl.lastAnswer);
     const allAnswered = answers.every(a => a && a.trim().length > 0);
+
+    console.log(`[submitAnswer] Connected players: ${connectedPlayers.length}, answers: [${answers.map(a => `"${a}"`).join(', ')}], allAnswered: ${allAnswered}`);
 
     if (allAnswered) {
       // stop timer and evaluate immediately
@@ -91,12 +103,13 @@ io.on("connection", (socket) => {
       }
       // Only evaluate if we have a valid turn city configured
       if (g.turnCity) {
+        console.log(`[submitAnswer] Evaluating turn for game ${gameId}`);
         await evaluateTurn(gameId);
       } else {
         console.log(`[submitAnswer] Skipping evaluation for game ${gameId} - turnCity not configured yet`);
       }
     } else {
-      // wait for other players to answer
+      console.log(`[submitAnswer] Waiting for all players to answer`);
     }
   });
 
@@ -179,23 +192,28 @@ async function startNextTurn(gameId: string) {
   // Reset evaluation flag for new turn
   g.evaluating = false;
 
-  // pick a city (random) - ensure truly random selection
+  // pick a city (random) - simple and reliable selection
+  const arrayLength = SOURCE_CITIES.length;
   const randomValue = Math.random();
-  const randomIndex = Math.floor(randomValue * SOURCE_CITIES.length);
+  const randomIndex = Math.floor(randomValue * arrayLength);
+  let city = SOURCE_CITIES[randomIndex];
 
-  // Additional check: if index is 0 (would be Paris now), re-roll once to avoid potential bias
-  const finalIndex = (randomIndex === 0 && Math.random() > 0.5) ?
-    Math.floor(Math.random() * (SOURCE_CITIES.length - 1)) + 1 : randomIndex;
+  if (!city) {
+    console.error(`[startNextTurn] ERROR: Ciudad undefined en índice ${randomIndex}, array length: ${arrayLength}`);
+    // Fallback to a known city
+    city = SOURCE_CITIES[0];
+  }
 
-  const city = SOURCE_CITIES[finalIndex];
   g.turnCity = city;
   g.turnStartTime = Date.now();
   resetAnswersForTurn(g);
 
-  console.log(`[startNextTurn] Ciudad aleatoria: random=${randomValue.toFixed(3)}, índice=${finalIndex}/${SOURCE_CITIES.length}, ciudad="${city}"`);
+  console.log(`[startNextTurn] Ciudad aleatoria: random=${randomValue.toFixed(3)}, índice=${randomIndex}/${arrayLength}, ciudad="${city}"`);
 
   // Send turn start with server timestamp for better sync
   const serverTime = Date.now();
+  console.log(`[startNextTurn] Enviando newTurn para turno ${g.currentTurnIndex + 1}: ciudad="${city}", gameId=${gameId}`);
+
   io.to(gameId).emit("newTurn", {
     turnIndex: g.currentTurnIndex,
     sourceCity: city,
@@ -296,7 +314,12 @@ async function evaluateTurn(gameId: string) {
 
   // prepare next turn immediately
   g.currentTurnIndex += 1;
-  startNextTurn(gameId);
+  console.log(`[evaluateTurn] Turno completado. Avanzando a turno ${g.currentTurnIndex + 1}/${g.turnsTotal}, gameId=${gameId}`);
+
+  // Usar setImmediate para asegurar que el siguiente turno se inicie correctamente
+  setImmediate(() => {
+    startNextTurn(gameId);
+  });
 }
 
 const port = process.env.PORT || 3000;
