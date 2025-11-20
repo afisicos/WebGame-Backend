@@ -23,40 +23,50 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: "*" } });
 
 io.on("connection", (socket) => {
-  console.log("conn", socket.id);
+  console.log("🔌 [CONNECTION] Nuevo cliente conectado:", socket.id);
 
   socket.on("createMatch", async ({ nickname }) => {
+    console.log(`[createMatch] Creando nueva partida para ${nickname} (socket: ${socket.id})`);
     const g = createGameWithId();
+    console.log(`[createMatch] Partida creada con ID: ${g.id}`);
     addPlayerToGame(g.id, { id: socket.id, name: nickname ?? "P1", score: 0 });
     socket.join(g.id);
     socket.emit("matchCreated", { gameId: g.id });
+    console.log(`[createMatch] Jugador añadido y evento matchCreated enviado`);
   });
 
   socket.on("joinMatch", ({ gameId, nickname }) => {
+    console.log(`[joinMatch] EVENTO RECIBIDO: gameId=${gameId}, nickname=${nickname}, socketId=${socket.id}`);
+
     const g = getGame(gameId);
     if (!g) {
-      console.log(`[joinMatch] Partida ${gameId} no existe`);
+      console.log(`[joinMatch] ERROR: Partida ${gameId} no existe`);
       return socket.emit("errorMsg", "Game not found");
     }
-  
+
     console.log(`[joinMatch] Jugador conectado socket=${socket.id} nombre=${nickname} gameId=${gameId}`);
-  
+    console.log(`[joinMatch] Estado actual del juego: ${JSON.stringify({ status: g.status, players: Object.keys(g.players) })}`);
+
     // Evitar añadir dos veces
     if (!g.players[socket.id]) {
+      console.log(`[joinMatch] Añadiendo jugador ${nickname} al juego ${gameId}`);
       addPlayerToGame(gameId, { id: socket.id, name: nickname ?? "Jugador", score: 0 });
+    } else {
+      console.log(`[joinMatch] Jugador ${nickname} ya estaba en el juego ${gameId}`);
     }
-  
+
     socket.join(gameId);
-  
-    console.log(`[joinMatch] Jugadores actuales en ${gameId}: ${Object.keys(g.players).length}`);
-  
+
+    const currentPlayers = Object.keys(g.players);
+    console.log(`[joinMatch] Jugadores actuales en ${gameId}: ${currentPlayers.length} (${currentPlayers.join(', ')})`);
+
     io.to(gameId).emit("playerJoined", {
       players: Object.values(g.players)
     });
-  
+
     // Cuando haya 2 → empezar partida
-    if (Object.keys(g.players).length === 2 && g.status === "waiting") {
-      console.log(`[matchStart] Partida ${gameId} tiene 2 jugadores → iniciando partida...`);
+    if (currentPlayers.length === 2 && g.status === "waiting") {
+      console.log(`[matchStart] ✅ CONDICIÓN CUMPLIDA: Partida ${gameId} tiene 2 jugadores → iniciando partida...`);
 
       g.status = "playing"; // Ir directamente a playing
       console.log(`[matchStart] Estado cambiado a playing para ${gameId}`);
@@ -67,7 +77,13 @@ io.on("connection", (socket) => {
 
       // Start turn cycle immediately
       console.log(`[matchStart] Iniciando ciclo de turnos en ${gameId}`);
-      setImmediate(() => startTurnCycle(gameId)); // Usar setImmediate para asegurar ejecución inmediata
+      console.log(`[matchStart] Llamando setImmediate con startTurnCycle...`);
+      setImmediate(() => {
+        console.log(`[setImmediate] Ejecutando startTurnCycle para ${gameId}`);
+        startTurnCycle(gameId);
+      });
+    } else {
+      console.log(`[joinMatch] Condición NO cumplida: players=${currentPlayers.length}, status=${g.status}`);
     }
   });
   
