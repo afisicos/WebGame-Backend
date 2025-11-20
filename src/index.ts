@@ -164,15 +164,17 @@ function startTurnCycle(gameId: string) {
   console.log(`[startTurnCycle] 2`);
   if (!g) return;
   console.log(`[startTurnCycle] 3`);
-  // Si ya está jugando, NO reiniciar
-  if (g.status === "playing") return;
+  // Nota: Removida la verificación de status === "playing" porque
+  // esta función se llama cuando el juego acaba de ser marcado como "playing"
+  // pero aún necesita ser inicializado
 
-  console.log(`[startTurnCycle] Iniciando partida gameId=${gameId}`);
+  console.log(`[startTurnCycle] Iniciando partida gameId=${gameId}, status actual: ${g.status}`);
 
   g.status = "playing";
   g.currentTurnIndex = 0;
   g.history = [];
 
+  console.log(`[startTurnCycle] Estado establecido: playing, currentTurnIndex=0, history=[]`);
   console.log(`[startTurnCycle] Llamando a startNextTurn para gameId=${gameId}`);
   startNextTurn(gameId);
 }
