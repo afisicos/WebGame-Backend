@@ -138,7 +138,7 @@ io.on("connection", (socket) => {
 });
 
 // Helper: start a turn cycle
-async function startTurnCycle(gameId: string) {
+function startTurnCycle(gameId: string) {
   const g = getGame(gameId);
   if (!g) return;
 
@@ -151,7 +151,8 @@ async function startTurnCycle(gameId: string) {
   g.currentTurnIndex = 0;
   g.history = [];
 
-  await startNextTurn(gameId);
+  console.log(`[startTurnCycle] Llamando a startNextTurn para gameId=${gameId}`);
+  startNextTurn(gameId);
 }
 
 const SOURCE_CITIES = [
@@ -164,8 +165,12 @@ const SOURCE_CITIES = [
 ];
 
 async function startNextTurn(gameId: string) {
+  console.log(`[startNextTurn] Función llamada para gameId=${gameId}`);
   const g = getGame(gameId);
-  if (!g) return;
+  if (!g) {
+    console.log(`[startNextTurn] ERROR: Game ${gameId} not found`);
+    return;
+  }
 
   // Prevent starting new turn if already evaluating or if game is over
   if (g.evaluating || g.status === "finished") {
@@ -187,7 +192,7 @@ async function startNextTurn(gameId: string) {
     return;
   }
 
-  console.log(`[startNextTurn] Turno ${g.currentTurnIndex + 1}/${g.turnsTotal} gameId=${gameId}`);
+  console.log(`[startNextTurn] Turno ${g.currentTurnIndex + 1}/${g.turnsTotal} gameId=${gameId}, status=${g.status}`);
 
   // Reset evaluation flag for new turn
   g.evaluating = false;
@@ -220,6 +225,10 @@ async function startNextTurn(gameId: string) {
     seconds: 20,
     serverTime: serverTime
   });
+
+  console.log(`[startNextTurn] Evento newTurn enviado exitosamente para gameId=${gameId}`);
+
+  console.log(`[startNextTurn] Turno configurado completamente para gameId=${gameId}`);
 
   // set timer 20s
   g.turnTimer = setTimeout(async () => {
