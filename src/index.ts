@@ -71,17 +71,19 @@ io.on("connection", (socket) => {
       g.status = "playing"; // Ir directamente a playing
       console.log(`[matchStart] Estado cambiado a playing para ${gameId}`);
 
+      console.log(`[matchStart] Enviando matchStart al room ${gameId} con ${io.sockets.adapter.rooms.get(gameId)?.size || 0} sockets conectados`);
       io.to(gameId).emit("matchStart", {
         message: "👥 Ambos jugadores conectados. ¡La partida comienza!"
       });
+      console.log(`[matchStart] Evento matchStart enviado exitosamente`);
 
       // Start turn cycle immediately
       console.log(`[matchStart] Iniciando ciclo de turnos en ${gameId}`);
-      console.log(`[matchStart] Llamando setImmediate con startTurnCycle...`);
-      setImmediate(() => {
-        console.log(`[setImmediate] Ejecutando startTurnCycle para ${gameId}`);
+      console.log(`[matchStart] Llamando setTimeout con startTurnCycle...`);
+      setTimeout(() => {
+        console.log(`[setTimeout] Ejecutando startTurnCycle para ${gameId}`);
         startTurnCycle(gameId);
-      });
+      }, 100); // Pequeño delay para asegurar sincronización
     } else {
       console.log(`[joinMatch] Condición NO cumplida: players=${currentPlayers.length}, status=${g.status}`);
     }
@@ -155,9 +157,13 @@ io.on("connection", (socket) => {
 
 // Helper: start a turn cycle
 function startTurnCycle(gameId: string) {
-  const g = getGame(gameId);
-  if (!g) return;
 
+  console.log(`[startTurnCycle] 1`);
+  const g = getGame(gameId);
+
+  console.log(`[startTurnCycle] 2`);
+  if (!g) return;
+  console.log(`[startTurnCycle] 3`);
   // Si ya está jugando, NO reiniciar
   if (g.status === "playing") return;
 
@@ -235,6 +241,9 @@ async function startNextTurn(gameId: string) {
   const serverTime = Date.now();
   console.log(`[startNextTurn] Enviando newTurn para turno ${g.currentTurnIndex + 1}: ciudad="${city}", gameId=${gameId}`);
 
+  console.log(`[startNextTurn] Enviando newTurn al room ${gameId} con ${io.sockets.adapter.rooms.get(gameId)?.size || 0} sockets conectados`);
+
+  // Intentar enviar por room primero
   io.to(gameId).emit("newTurn", {
     turnIndex: g.currentTurnIndex,
     sourceCity: city,
@@ -242,7 +251,30 @@ async function startNextTurn(gameId: string) {
     serverTime: serverTime
   });
 
+  // También enviar directamente a cada socket del juego como backup
+  console.log(`[startNextTurn] Enviando newTurn directamente a ${Object.keys(g.players).length} sockets`);
+  for (const playerId of Object.keys(g.players)) {
+    const socket = io.sockets.sockets.get(playerId);
+    if (socket) {
+      console.log(`[startNextTurn] Enviando a socket ${playerId}`);
+      socket.emit("newTurn", {
+        turnIndex: g.currentTurnIndex,
+        sourceCity: city,
+        seconds: 20,
+        serverTime: serverTime
+      });
+    } else {
+      console.log(`[startNextTurn] Socket ${playerId} no encontrado`);
+    }
+  }
+
   console.log(`[startNextTurn] Evento newTurn enviado exitosamente para gameId=${gameId}`);
+  console.log(`[startNextTurn] Estado final del juego:`, {
+    status: g.status,
+    currentTurnIndex: g.currentTurnIndex,
+    turnCity: g.turnCity,
+    playersCount: Object.keys(g.players).length
+  });
 
   console.log(`[startNextTurn] Turno configurado completamente para gameId=${gameId}`);
 
